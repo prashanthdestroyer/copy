@@ -2,11 +2,10 @@
 using System.Linq;
 using System.Linq.Dynamic.Core;
 using FluentValidation;
-using LinqToDB;
-using LinqToDB.Mapping;
 using Nop.Core;
 using Nop.Core.Infrastructure;
 using Nop.Data;
+using Nop.Data.Mapping;
 using Nop.Services.Localization;
 
 namespace Nop.Web.Framework.Validators
@@ -47,7 +46,7 @@ namespace Nop.Web.Framework.Validators
             if (dataProvider is null)
                 throw new ArgumentNullException(nameof(dataProvider));
 
-            var entityDescriptor = dataProvider.GetEntityDescriptor<TEntity>();
+            var entityDescriptor = dataProvider.GetEntityDescriptor(typeof(TEntity));
 
             SetStringPropertiesMaxLength(entityDescriptor, filterStringPropertyNames);
             SetDecimalMaxValue(entityDescriptor);
@@ -58,7 +57,7 @@ namespace Nop.Web.Framework.Validators
         /// </summary>
         /// <param name="entityDescriptor">Entity descriptor</param>
         /// <param name="filterPropertyNames">Properties to skip</param>
-        protected virtual void SetStringPropertiesMaxLength(EntityDescriptor entityDescriptor, params string[] filterPropertyNames)
+        protected virtual void SetStringPropertiesMaxLength(NopEntityDescriptor entityDescriptor, params string[] filterPropertyNames)
         {
             if (entityDescriptor is null)
                 return;
@@ -69,15 +68,15 @@ namespace Nop.Web.Framework.Validators
                 .Select(property => property.Name).ToList();
 
             //get max length of these properties
-            var columnsMaxLengths = entityDescriptor.Columns.Where(column =>
-                modelPropertyNames.Contains(column.ColumnName) && column.MemberType == typeof(string) && column.Length.HasValue);
+            var columnsMaxLengths = entityDescriptor.Fields.Where(field =>
+                modelPropertyNames.Contains(field.Name) && field.Type == typeof(string) && field.Size.HasValue);
 
             //create expressions for the validation rules
-            var maxLengthExpressions = columnsMaxLengths.Select(property => new
+            var maxLengthExpressions = columnsMaxLengths.Select(field => new
             {
-                MaxLength = property.Length.Value,
+                MaxLength = field.Size.Value,
                 // We must using identifiers of the form @SomeName to avoid problems with parsing fields that match reserved words https://github.com/StefH/System.Linq.Dynamic.Core/wiki/Dynamic-Expressions#substitution-values
-                Expression = DynamicExpressionParser.ParseLambda<TModel, string>(null, false, "@" + property.ColumnName)
+                Expression = DynamicExpressionParser.ParseLambda<TModel, string>(null, false, "@" + field.Name)
             }).ToList();
 
             //define string length validation rules
@@ -91,7 +90,7 @@ namespace Nop.Web.Framework.Validators
         /// Sets max value validation rule(s) to decimal properties according to appropriate database model
         /// </summary>
         /// <param name="entityDescriptor">Entity descriptor</param>
-        protected virtual void SetDecimalMaxValue(EntityDescriptor entityDescriptor)
+        protected virtual void SetDecimalMaxValue(NopEntityDescriptor entityDescriptor)
         {
             if (entityDescriptor is null)
                 return;
@@ -102,18 +101,18 @@ namespace Nop.Web.Framework.Validators
                 .Select(property => property.Name).ToList();
 
             //get max values of these properties
-            var decimalColumnsMaxValues = entityDescriptor.Columns.Where(column =>
-                modelPropertyNames.Contains(column.ColumnName) &&
-                column.DataType == DataType.Decimal && column.Length.HasValue && column.Precision.HasValue);
+            var decimalColumnsMaxValues = entityDescriptor.Fields.Where(field =>
+                modelPropertyNames.Contains(field.Name) &&
+                field.Type == typeof(decimal) && field.Size.HasValue && field.Precision.HasValue);
 
             if (!decimalColumnsMaxValues.Any())
                 return;
 
             //create expressions for the validation rules
-            var maxValueExpressions = decimalColumnsMaxValues.Select(column => new
+            var maxValueExpressions = decimalColumnsMaxValues.Select(field => new
             {
-                MaxValue = (decimal)Math.Pow(10, column.Length.Value - column.Precision.Value),
-                Expression = DynamicExpressionParser.ParseLambda<TModel, decimal>(null, false, column.ColumnName)
+                MaxValue = (decimal)Math.Pow(10, field.Size.Value - field.Precision.Value),
+                Expression = DynamicExpressionParser.ParseLambda<TModel, decimal>(null, false, field.Name)
             }).ToList();
 
             //define decimal validation rules

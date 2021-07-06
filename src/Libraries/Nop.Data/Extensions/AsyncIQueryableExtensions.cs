@@ -587,7 +587,7 @@ namespace System.Linq
         /// A task that represents the asynchronous operation
         /// The task result contains the dictionary with query results
         /// </returns>
-        public static Task<Dictionary<TKey, TElement>> ToDictionaryAsync<TSource, TKey, TElement>(
+        public static Task<Dictionary<TKey, TElement>> ToDictionaryNopAsync<TSource, TKey, TElement>(
             this IQueryable<TSource> source, Func<TSource, TKey> keySelector, Func<TSource, TElement> elementSelector,
             IEqualityComparer<TKey> comparer = null) where TKey : notnull
         {
