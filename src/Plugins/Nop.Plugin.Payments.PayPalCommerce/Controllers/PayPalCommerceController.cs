@@ -394,13 +394,7 @@ namespace Nop.Plugin.Payments.PayPalCommerce.Controllers
         [HttpPost]
         public async Task<IActionResult> SignUp(OnboardingModel model)
         {
-            var (_, error) = await _serviceManager.SignUpAsync(model.MerchantGuid, model.AuthCode, model.SharedId);
-            if (!string.IsNullOrEmpty(error))
-            {
-                var locale = await _localizationService.GetResourceAsync("Plugins.Payments.PayPalCommerce.Configuration.Error");
-                var errorMessage = string.Format(locale, error, Url.Action("List", "Log"));
-                _notificationService.ErrorNotification(errorMessage, false);
-            }
+            await _serviceManager.SignUpAsync(model.MerchantGuid, model.AuthCode, model.SharedId);
 
             //clear URL since the merchant is already signed up
             var storeId = await _storeContext.GetActiveStoreScopeConfigurationAsync();
