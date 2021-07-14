@@ -260,15 +260,11 @@ namespace Nop.Data.DataProviders
         public override TEntity InsertEntity<TEntity>(TEntity entity)
         {
             using var dataContext = CreateDataConnection();
-            try
-            {
+
+            if(GetEntityDescriptor<TEntity>()?.Columns.Any(c => c.IsIdentity) ?? false)
                 entity.Id = dataContext.InsertWithInt32Identity(entity);
-            }
-            // Ignore when we try insert foreign entity via InsertWithInt32IdentityAsync method
-            catch (global::LinqToDB.SqlQuery.SqlException ex) when (ex.Message.StartsWith("Identity field must be defined for"))
-            {
+            else
                 dataContext.Insert(entity);
-            }
 
             return entity;
         }
@@ -285,15 +281,11 @@ namespace Nop.Data.DataProviders
         public override async Task<TEntity> InsertEntityAsync<TEntity>(TEntity entity)
         {
             using var dataContext = await CreateDataConnectionAsync();
-            try
-            {
+
+            if(GetEntityDescriptor<TEntity>()?.Columns.Any(c => c.IsIdentity) ?? false)
                 entity.Id = await dataContext.InsertWithInt32IdentityAsync(entity);
-            }
-            // Ignore when we try insert foreign entity via InsertWithInt32IdentityAsync method
-            catch (global::LinqToDB.SqlQuery.SqlException ex) when (ex.Message.StartsWith("Identity field must be defined for"))
-            {
+            else
                 await dataContext.InsertAsync(entity);
-            }
 
             return entity;
         }

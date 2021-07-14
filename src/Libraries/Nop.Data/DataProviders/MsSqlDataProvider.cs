@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data.Common;
-using System.Data.SqlClient;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -9,6 +8,8 @@ using LinqToDB;
 using LinqToDB.Data;
 using LinqToDB.DataProvider;
 using LinqToDB.DataProvider.SqlServer;
+using LinqToDB.Tools;
+using Microsoft.Data.SqlClient;
 using Nop.Core;
 using Nop.Core.Infrastructure;
 using Nop.Data.Migrations;
@@ -22,7 +23,7 @@ namespace Nop.Data.DataProviders
     {
         #region Fields
 
-        private static readonly Lazy<IDataProvider> _dataProvider = new(() => new SqlServerDataProvider(ProviderName.SqlServer, SqlServerVersion.v2012, SqlServerProvider.SystemDataSqlClient), true);
+        private static readonly Lazy<IDataProvider> _dataProvider = new(() => new SqlServerDataProvider(ProviderName.SqlServer, SqlServerVersion.v2012, SqlServerProvider.MicrosoftDataSqlClient), true);
 
         #endregion
 
@@ -42,10 +43,6 @@ namespace Nop.Data.DataProviders
 
             return new SqlConnectionStringBuilder(connectionString);
         }
-
-        #endregion
-
-        #region Utils
         
         /// <summary>
         /// Gets a connection to the database for a current data provider
@@ -55,7 +52,7 @@ namespace Nop.Data.DataProviders
         protected override DbConnection GetInternalDbConnection(string connectionString)
         {
             if (string.IsNullOrEmpty(connectionString))
-                throw new ArgumentException(nameof(connectionString));
+                throw new ArgumentNullException(nameof(connectionString));
 
             return new SqlConnection(connectionString);
         }
@@ -319,6 +316,19 @@ namespace Nop.Data.DataProviders
         public virtual string GetIndexName(string targetTable, string targetColumn)
         {
             return $"IX_{targetTable}_{targetColumn}";
+        }
+
+        /// <summary>
+        /// Performs bulk insert operation for entity colllection.
+        /// </summary>
+        /// <param name="entities">Entities for insert operation</param>
+        /// <typeparam name="TEntity">Entity type</typeparam>
+        /// <returns>A task that represents the asynchronous operation</returns>
+        public override async Task BulkInsertEntitiesAsync<TEntity>(IEnumerable<TEntity> entities)
+        {
+            using var dataContext = await CreateDataConnectionAsync();
+            //we use the useIdentity parameter to improve capabilities for SQL Server
+            await dataContext.BulkCopyAsync(new BulkCopyOptions(), entities.RetrieveIdentity(dataContext, useIdentity: true));
         }
 
         /// <summary>
